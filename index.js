@@ -1,116 +1,59 @@
-const { Client, GatewayIntentBits, EmbedBuilder, PermissionsBitField } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
+
+// 🔥 Ejecuta comandos slash automáticamente (TEMPORAL)
+require('./deploy-commands.js');
 
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMembers
+    GatewayIntentBits.MessageContent
   ]
 });
 
+// 🧠 XP simple
+const xp = new Map();
+
 client.once('ready', () => {
-  console.log(`🔥 Bot conectado como ${client.user.tag}`);
+  console.log(`🔥 Bot listo como ${client.user.tag}`);
 });
 
-// 🔥 BIENVENIDA AUTOMÁTICA
-client.on('guildMemberAdd', member => {
-  const canal = member.guild.channels.cache.find(c => c.name === "general");
-
-  if (!canal) return;
-
-  const embed = new EmbedBuilder()
-    .setTitle("🔥 NUEVO JUGADOR 🔥")
-    .setDescription(`Bienvenido ${member} a **MU CORE HARD S6** 💀`)
-    .setColor("#00ff00")
-    .setFooter({ text: "Prepárate para lo extremo..." });
-
-  canal.send({ embeds: [embed] });
-});
-
-// 🎮 COMANDOS
-client.on('messageCreate', async (message) => {
+// 💬 XP por mensaje
+client.on('messageCreate', message => {
   if (message.author.bot) return;
 
-  const prefix = "!";
+  const userId = message.author.id;
+  const data = xp.get(userId) || { xp: 0, level: 1 };
 
-  if (!message.content.startsWith(prefix)) return;
+  data.xp += 10;
 
-  const args = message.content.slice(prefix.length).trim().split(/ +/);
-  const command = args.shift().toLowerCase();
-
-  // 🏓 PING
-  if (command === "ping") {
-    return message.reply("🏓 Pong!");
+  if (data.xp >= data.level * 100) {
+    data.level++;
+    message.channel.send(`🔥 ${message.author} subió a nivel ${data.level}`);
   }
 
-  // 📜 HELP
-  if (command === "help") {
-    const embed = new EmbedBuilder()
-      .setTitle("📜 COMANDOS")
-      .setColor("#ff0000")
-      .setDescription(`
-\`!ping\` → Ping  
-\`!info\` → Info server  
-\`!clear\` → Borrar mensajes  
-\`!kick\` → Expulsar  
-\`!ban\` → Banear  
-      `);
+  xp.set(userId, data);
+});
 
-    return message.reply({ embeds: [embed] });
+// ⚡ SLASH COMMANDS
+client.on('interactionCreate', async interaction => {
+  if (!interaction.isChatInputCommand()) return;
+
+  if (interaction.commandName === 'ping') {
+    return interaction.reply('🏓 Pong!');
   }
 
-  // 💎 INFO
-  if (command === "info") {
+  if (interaction.commandName === 'info') {
     const embed = new EmbedBuilder()
       .setTitle("🔥 MU CORE HARD S6 🔥")
       .setColor("#00ffff")
-      .addFields(
-        { name: "⚔️ Tipo", value: "Play To Win", inline: true },
-        { name: "🔥 Season", value: "S6 EXTREMA", inline: true },
-        { name: "📊 EXP", value: "20x - 5x", inline: true }
-      );
+      .setDescription("Servidor extremo Play To Win 💀");
 
-    return message.reply({ embeds: [embed] });
+    return interaction.reply({ embeds: [embed] });
   }
 
-  // 🧹 CLEAR
-  if (command === "clear") {
-    if (!message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
-      return message.reply("❌ Sin permisos");
-    }
-
-    const cantidad = args[0];
-    if (!cantidad) return message.reply("❌ Escribe cantidad");
-
-    await message.channel.bulkDelete(cantidad, true);
-    message.channel.send(`🧹 Se borraron ${cantidad} mensajes`);
-  }
-
-  // 👢 KICK
-  if (command === "kick") {
-    if (!message.member.permissions.has(PermissionsBitField.Flags.KickMembers)) {
-      return message.reply("❌ Sin permisos");
-    }
-
-    const user = message.mentions.members.first();
-    if (!user) return message.reply("❌ Menciona usuario");
-
-    user.kick();
-    message.channel.send(`👢 ${user.user.tag} fue expulsado`);
-  }
-
-  // 🔨 BAN
-  if (command === "ban") {
-    if (!message.member.permissions.has(PermissionsBitField.Flags.BanMembers)) {
-      return message.reply("❌ Sin permisos");
-    }
-
-    const user = message.mentions.members.first();
-    if (!user) return message.reply("❌ Menciona usuario");
-
-    user.ban();
-    message.channel.send(`🔨 ${user.user.tag} fue baneado`);
+  if (interaction.commandName === 'help') {
+    return interaction.reply("📜 Usa /ping /info /help");
   }
 });
 
