@@ -6,47 +6,34 @@ const {
   REST,
   Routes,
   SlashCommandBuilder,
-  EmbedBuilder,
-  PermissionsBitField,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle
+  EmbedBuilder
 } = require('discord.js');
 
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMembers
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
   ]
 });
 
 const TOKEN = process.env.TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
-const GUILD_ID = "1490025222798053467"; // TU SERVER
+const GUILD_ID = "1490025222798053467";
+
+// 🧠 BASE XP (memoria)
+const users = new Map();
 
 // 📜 COMANDOS
 const commands = [
-  new SlashCommandBuilder().setName('ping').setDescription('Verifica el bot'),
-
-  new SlashCommandBuilder().setName('info').setDescription('Info del servidor'),
-
-  new SlashCommandBuilder().setName('help').setDescription('Lista de comandos'),
-
-  new SlashCommandBuilder()
-    .setName('anuncio')
-    .setDescription('Enviar anuncio')
-    .addStringOption(option =>
-      option.setName('mensaje').setDescription('Mensaje').setRequired(true)
-    ),
-
-  new SlashCommandBuilder()
-    .setName('ticket')
-    .setDescription('Abrir panel de tickets')
+  new SlashCommandBuilder().setName('ping').setDescription('Ping'),
+  new SlashCommandBuilder().setName('rank').setDescription('Ver tu nivel'),
+  new SlashCommandBuilder().setName('top').setDescription('Ranking')
 ].map(cmd => cmd.toJSON());
 
 // 🚀 READY
 client.once('ready', async () => {
-  console.log(`🔥 Bot PRO activo como ${client.user.tag}`);
+  console.log(`🔥 ULTRA BOT activo: ${client.user.tag}`);
 
   const rest = new REST({ version: '10' }).setToken(TOKEN);
 
@@ -55,110 +42,71 @@ client.once('ready', async () => {
     { body: commands }
   );
 
-  console.log('✅ Comandos PRO cargados');
+  console.log('✅ Comandos ULTRA cargados');
 });
 
-// 🎉 BIENVENIDA + ROL
-client.on('guildMemberAdd', member => {
-  const canal = member.guild.channels.cache.find(c => c.name === 'general');
+// 💬 XP AUTOMÁTICO
+client.on('messageCreate', message => {
+  if (message.author.bot) return;
 
-  if (canal) {
-    const embed = new EmbedBuilder()
-      .setColor('#00ff00')
-      .setTitle('🎉 NUEVO JUGADOR')
-      .setDescription(`Bienvenido ${member} a **MU CORE HARD S6** 💀`);
+  const id = message.author.id;
 
-    canal.send({ embeds: [embed] });
+  const data = users.get(id) || { xp: 0, level: 1 };
+
+  data.xp += 10;
+
+  if (data.xp >= data.level * 100) {
+    data.level++;
+    message.channel.send(`🔥 ${message.author} subió a nivel ${data.level}`);
   }
 
-  const rol = member.guild.roles.cache.find(r => r.name === 'Miembro');
-
-  if (rol) member.roles.add(rol);
+  users.set(id, data);
 });
 
-// 🎮 INTERACCIONES
+// 🎮 SLASH
 client.on('interactionCreate', async interaction => {
-
-  // 🎟️ BOTONES
-  if (interaction.isButton()) {
-    if (interaction.customId === 'crear_ticket') {
-      const canal = await interaction.guild.channels.create({
-        name: `ticket-${interaction.user.username}`,
-        type: 0,
-        permissionOverwrites: [
-          {
-            id: interaction.guild.id,
-            deny: ['ViewChannel']
-          },
-          {
-            id: interaction.user.id,
-            allow: ['ViewChannel', 'SendMessages']
-          }
-        ]
-      });
-
-      canal.send(`🎟️ Ticket creado para ${interaction.user}`);
-      interaction.reply({ content: '✅ Ticket creado', ephemeral: true });
-    }
-  }
-
-  // 🎯 SLASH
   if (!interaction.isChatInputCommand()) return;
 
-  // 🔹 PING
+  const id = interaction.user.id;
+  const data = users.get(id) || { xp: 0, level: 1 };
+
+  // 🏓 PING
   if (interaction.commandName === 'ping') {
     return interaction.reply('🏓 Pong!');
   }
 
-  // 🔹 INFO
-  if (interaction.commandName === 'info') {
+  // 🧠 RANK
+  if (interaction.commandName === 'rank') {
     const embed = new EmbedBuilder()
-      .setColor('#0099ff')
-      .setTitle('📊 Info del servidor')
-      .setDescription(`👥 Usuarios: ${interaction.guild.memberCount}`);
+      .setColor('#00ffcc')
+      .setTitle(`🎮 ${interaction.user.username}`)
+      .addFields(
+        { name: 'Nivel', value: `${data.level}`, inline: true },
+        { name: 'XP', value: `${data.xp}`, inline: true }
+      );
 
     return interaction.reply({ embeds: [embed] });
   }
 
-  // 🔹 HELP
-  if (interaction.commandName === 'help') {
-    return interaction.reply('📜 /ping /info /anuncio /ticket');
-  }
+  // 🏆 TOP
+  if (interaction.commandName === 'top') {
+    const sorted = [...users.entries()]
+      .sort((a, b) => b[1].xp - a[1].xp)
+      .slice(0, 5);
 
-  // 📢 ANUNCIO
-  if (interaction.commandName === 'anuncio') {
-    if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-      return interaction.reply({ content: '❌ Sin permisos', ephemeral: true });
-    }
+    let desc = '';
 
-    const msg = interaction.options.getString('mensaje');
-
-    const embed = new EmbedBuilder()
-      .setColor('#ff0000')
-      .setTitle('📢 ANUNCIO')
-      .setDescription(msg);
-
-    interaction.channel.send({ embeds: [embed] });
-    interaction.reply({ content: '✅ Anuncio enviado', ephemeral: true });
-  }
-
-  // 🎟️ PANEL TICKET
-  if (interaction.commandName === 'ticket') {
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('crear_ticket')
-        .setLabel('Abrir Ticket')
-        .setStyle(ButtonStyle.Primary)
-    );
+    sorted.forEach((user, i) => {
+      desc += `#${i + 1} <@${user[0]}> - Nivel ${user[1].level}\n`;
+    });
 
     const embed = new EmbedBuilder()
-      .setColor('#00ffff')
-      .setTitle('🎟️ SOPORTE')
-      .setDescription('Haz clic para abrir un ticket');
+      .setColor('#ffd700')
+      .setTitle('🏆 TOP PLAYERS')
+      .setDescription(desc || 'Sin datos');
 
-    interaction.reply({ embeds: [embed], components: [row] });
+    return interaction.reply({ embeds: [embed] });
   }
-
 });
 
 client.login(TOKEN);
