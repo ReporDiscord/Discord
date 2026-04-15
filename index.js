@@ -1,5 +1,4 @@
 require('dotenv').config();
-require('./deploy-commands.js');
 
 const { Client, GatewayIntentBits } = require('discord.js');
 
@@ -7,10 +6,12 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
 
+// ✅ BOT LISTO
 client.once('ready', () => {
   console.log(`✅ Bot listo como ${client.user.tag}`);
 });
 
+// 🎮 COMANDOS
 client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
@@ -27,4 +28,5 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
+// 🔐 LOGIN
 client.login(process.env.TOKEN);
