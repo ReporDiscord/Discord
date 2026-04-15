@@ -16,7 +16,7 @@ const TOKEN = process.env.TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 
 // 🔥 AGREGA ESTO
-const GUILD_ID = "AQUI_TU_SERVER_ID";
+const GUILD_ID = "1490025222798053467";
 
 // 📜 COMANDOS
 const commands = [
