@@ -15,6 +15,9 @@ const client = new Client({
 const TOKEN = process.env.TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 
+// 🔥 AGREGA ESTO
+const GUILD_ID = "AQUI_TU_SERVER_ID";
+
 // 📜 COMANDOS
 const commands = [
   new SlashCommandBuilder()
@@ -37,16 +40,16 @@ client.once('ready', async () => {
   try {
     const rest = new REST({ version: '10' }).setToken(TOKEN);
 
-    console.log('🚀 Registrando comandos...');
+    console.log('🚀 Registrando comandos instantáneos...');
 
     await rest.put(
-      Routes.applicationCommands(CLIENT_ID),
+      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
       { body: commands }
     );
 
-    console.log('✅ Comandos registrados correctamente');
+    console.log('✅ Comandos listos al instante');
   } catch (error) {
-    console.error('❌ Error registrando comandos:', error);
+    console.error('❌ Error:', error);
   }
 });
 
