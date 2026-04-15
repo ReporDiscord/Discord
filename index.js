@@ -1,17 +1,56 @@
 require('dotenv').config();
 
-const { Client, GatewayIntentBits } = require('discord.js');
+const { 
+  Client, 
+  GatewayIntentBits, 
+  REST, 
+  Routes, 
+  SlashCommandBuilder 
+} = require('discord.js');
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
 
-// ✅ BOT LISTO
-client.once('ready', () => {
+const TOKEN = process.env.TOKEN;
+const CLIENT_ID = process.env.CLIENT_ID;
+
+// 📜 COMANDOS
+const commands = [
+  new SlashCommandBuilder()
+    .setName('ping')
+    .setDescription('Responde Pong'),
+
+  new SlashCommandBuilder()
+    .setName('info')
+    .setDescription('Info del servidor'),
+
+  new SlashCommandBuilder()
+    .setName('help')
+    .setDescription('Ver comandos')
+].map(cmd => cmd.toJSON());
+
+// 🚀 REGISTRAR + INICIAR
+client.once('ready', async () => {
   console.log(`✅ Bot listo como ${client.user.tag}`);
+
+  try {
+    const rest = new REST({ version: '10' }).setToken(TOKEN);
+
+    console.log('🚀 Registrando comandos...');
+
+    await rest.put(
+      Routes.applicationCommands(CLIENT_ID),
+      { body: commands }
+    );
+
+    console.log('✅ Comandos registrados correctamente');
+  } catch (error) {
+    console.error('❌ Error registrando comandos:', error);
+  }
 });
 
-// 🎮 COMANDOS
+// 🎮 RESPUESTAS
 client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
@@ -28,5 +67,4 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
-// 🔐 LOGIN
-client.login(process.env.TOKEN);
+client.login(TOKEN);
