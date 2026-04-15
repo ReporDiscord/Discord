@@ -17,6 +17,9 @@ const TOKEN = process.env.TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 const PORT = process.env.PORT || 8080;
 
+// ⚠️ PON TU ID DE SERVIDOR AQUÍ (para comandos instantáneos)
+const GUILD_ID = "AQUI_TU_SERVER_ID";
+
 // ===== CLIENTE =====
 const client = new Client({
   intents: [
@@ -46,6 +49,10 @@ const commands = [
     .setDescription('Responde Pong'),
 
   new SlashCommandBuilder()
+    .setName('info')
+    .setDescription('Información del servidor'),
+
+  new SlashCommandBuilder()
     .setName('rank')
     .setDescription('Ver tu nivel'),
 
@@ -61,19 +68,20 @@ client.once('ready', async () => {
   try {
     const rest = new REST({ version: '10' }).setToken(TOKEN);
 
+    // ⚡ COMANDOS INSTANTÁNEOS (solo en tu server)
     await rest.put(
-      Routes.applicationCommands(CLIENT_ID),
+      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
       { body: commands }
     );
 
-    console.log('✅ Comandos registrados');
+    console.log('✅ Comandos registrados correctamente');
   } catch (err) {
     console.error(err);
   }
 });
 
 // ===== XP SYSTEM =====
-client.on('messageCreate', async (message) => {
+client.on('messageCreate', (message) => {
   if (message.author.bot) return;
 
   const id = message.author.id;
@@ -95,15 +103,15 @@ client.on('messageCreate', async (message) => {
   saveData();
 });
 
-// ===== BIENVENIDA PRO =====
+// ===== BIENVENIDA =====
 client.on('guildMemberAdd', (member) => {
   const canal = member.guild.systemChannel;
 
   if (!canal) return;
 
-  canal.send({
-    content: `🔥 Bienvenido ${member.user} a **MU CORE**\n💀 Prepárate para dominar el server`
-  });
+  canal.send(
+    `🔥 Bienvenido ${member.user} a **MU CORE**\n💀 Domina el servidor`
+  );
 });
 
 // ===== COMANDOS =====
@@ -114,6 +122,14 @@ client.on('interactionCreate', async (interaction) => {
 
   if (interaction.commandName === 'ping') {
     return interaction.reply('🏓 Pong!');
+  }
+
+  if (interaction.commandName === 'info') {
+    const server = interaction.guild;
+
+    return interaction.reply(
+      `📊 **Servidor:** ${server.name}\n👥 Miembros: ${server.memberCount}`
+    );
   }
 
   if (interaction.commandName === 'rank') {
@@ -159,7 +175,7 @@ app.get('/api/ranking', async (req, res) => {
   res.json(ranking);
 });
 
-// ===== PANEL =====
+// ===== PANEL WEB =====
 app.get('/', (req, res) => {
   res.send(`
   <html>
