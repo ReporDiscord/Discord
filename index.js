@@ -1,10 +1,11 @@
-const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, PermissionsBitField } = require('discord.js');
 
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers
   ]
 });
 
@@ -12,7 +13,22 @@ client.once('ready', () => {
   console.log(`🔥 Bot conectado como ${client.user.tag}`);
 });
 
-// COMANDOS
+// 🔥 BIENVENIDA AUTOMÁTICA
+client.on('guildMemberAdd', member => {
+  const canal = member.guild.channels.cache.find(c => c.name === "general");
+
+  if (!canal) return;
+
+  const embed = new EmbedBuilder()
+    .setTitle("🔥 NUEVO JUGADOR 🔥")
+    .setDescription(`Bienvenido ${member} a **MU CORE HARD S6** 💀`)
+    .setColor("#00ff00")
+    .setFooter({ text: "Prepárate para lo extremo..." });
+
+  canal.send({ embeds: [embed] });
+});
+
+// 🎮 COMANDOS
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
 
@@ -31,36 +47,70 @@ client.on('messageCreate', async (message) => {
   // 📜 HELP
   if (command === "help") {
     const embed = new EmbedBuilder()
-      .setTitle("📜 COMANDOS DISPONIBLES")
+      .setTitle("📜 COMANDOS")
       .setColor("#ff0000")
       .setDescription(`
-🔥 **Comandos del servidor**
-
-\`!ping\` → Respuesta del bot  
-\`!info\` → Info del servidor  
-\`!help\` → Ver comandos  
-      `)
-      .setFooter({ text: "MU CORE HARD S6" });
+\`!ping\` → Ping  
+\`!info\` → Info server  
+\`!clear\` → Borrar mensajes  
+\`!kick\` → Expulsar  
+\`!ban\` → Banear  
+      `);
 
     return message.reply({ embeds: [embed] });
   }
 
-  // 💎 INFO SERVER
+  // 💎 INFO
   if (command === "info") {
     const embed = new EmbedBuilder()
       .setTitle("🔥 MU CORE HARD S6 🔥")
-      .setColor("#00ffcc")
+      .setColor("#00ffff")
       .addFields(
-        { name: "⚔️ Servidor", value: "Play To Win", inline: true },
-        { name: "🔥 Season", value: "Season 6 EXTREMA", inline: true },
-        { name: "👑 Nivel", value: "Hard Core", inline: true },
-        { name: "📊 EXP", value: "20x - 5x", inline: true },
-        { name: "💎 Drop", value: "20%", inline: true },
-        { name: "🔁 Reset", value: "Max 3", inline: true }
-      )
-      .setFooter({ text: "Domina o serás dominado 💀" });
+        { name: "⚔️ Tipo", value: "Play To Win", inline: true },
+        { name: "🔥 Season", value: "S6 EXTREMA", inline: true },
+        { name: "📊 EXP", value: "20x - 5x", inline: true }
+      );
 
     return message.reply({ embeds: [embed] });
+  }
+
+  // 🧹 CLEAR
+  if (command === "clear") {
+    if (!message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
+      return message.reply("❌ Sin permisos");
+    }
+
+    const cantidad = args[0];
+    if (!cantidad) return message.reply("❌ Escribe cantidad");
+
+    await message.channel.bulkDelete(cantidad, true);
+    message.channel.send(`🧹 Se borraron ${cantidad} mensajes`);
+  }
+
+  // 👢 KICK
+  if (command === "kick") {
+    if (!message.member.permissions.has(PermissionsBitField.Flags.KickMembers)) {
+      return message.reply("❌ Sin permisos");
+    }
+
+    const user = message.mentions.members.first();
+    if (!user) return message.reply("❌ Menciona usuario");
+
+    user.kick();
+    message.channel.send(`👢 ${user.user.tag} fue expulsado`);
+  }
+
+  // 🔨 BAN
+  if (command === "ban") {
+    if (!message.member.permissions.has(PermissionsBitField.Flags.BanMembers)) {
+      return message.reply("❌ Sin permisos");
+    }
+
+    const user = message.mentions.members.first();
+    if (!user) return message.reply("❌ Menciona usuario");
+
+    user.ban();
+    message.channel.send(`🔨 ${user.user.tag} fue baneado`);
   }
 });
 
