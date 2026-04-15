@@ -18,7 +18,7 @@ const CLIENT_ID = process.env.CLIENT_ID;
 const PORT = process.env.PORT || 8080;
 
 // ⚠️ PON TU ID DE SERVIDOR AQUÍ (para comandos instantáneos)
-const GUILD_ID = "AQUI_TU_SERVER_ID";
+const GUILD_ID = "1490025222798053467";
 
 // ===== CLIENTE =====
 const client = new Client({
