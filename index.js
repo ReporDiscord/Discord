@@ -147,27 +147,30 @@ client.on('interactionCreate', async i => {
 
 // ===== CONTADOR PRO MAX =====
 async function updateStats(guild) {
-  const members = await guild.members.fetch();
+  try {
+    const members = await guild.members.fetch();
 
-  const total = guild.memberCount;
-  const humans = members.filter(m => !m.user.bot).size;
-  const bots = members.filter(m => m.user.bot).size;
-  const online = members.filter(m => m.presence?.status !== 'offline').size;
+    const total = guild.memberCount;
+    const humans = members.filter(m => !m.user.bot).size;
+    const bots = members.filter(m => m.user.bot).size;
+    const online = members.filter(m => m.presence?.status !== 'offline').size;
 
-  // 🔥 REEMPLAZA ESTOS IDs
-  const channels = {
-    total: guild.channels.cache.get("1494133601091190957"),
-    online: guild.channels.cache.get("1494133601091190957"),
-    humans: guild.channels.cache.get("1494134216437530777"),
-    bots: guild.channels.cache.get("1494134104369790976")
-  };
+    const channels = {
+      total: guild.channels.cache.get("ID_TOTAL"),
+      online: guild.channels.cache.get("ID_ONLINE"),
+      humans: guild.channels.cache.get("ID_HUMANS"),
+      bots: guild.channels.cache.get("ID_BOTS")
+    };
 
-  if (channels.total) channels.total.setName(`👥・Total: ${total}`);
-  if (channels.online) channels.online.setName(`🟢・Online: ${online}`);
-  if (channels.humans) channels.humans.setName(`👤・Humanos: ${humans}`);
-  if (channels.bots) channels.bots.setName(`🤖・Bots: ${bots}`);
+    if (channels.total) await channels.total.setName(`👥・Total: ${total}`);
+    if (channels.online) await channels.online.setName(`🟢・Online: ${online}`);
+    if (channels.humans) await channels.humans.setName(`👤・Humanos: ${humans}`);
+    if (channels.bots) await channels.bots.setName(`🤖・Bots: ${bots}`);
+
+  } catch (err) {
+    console.log("❌ Error en contador:", err.message);
+  }
 }
-
 // ===== EVENTOS =====
 client.on('guildMemberAdd', m => updateStats(m.guild));
 client.on('guildMemberRemove', m => updateStats(m.guild));
