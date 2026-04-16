@@ -23,14 +23,16 @@ const CLIENT_ID = "1494077640355741947";
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const PORT = process.env.PORT || 8080;
 
-// ===== BOT =====
+// ⚠️ PON AQUÍ EL ID DE TU CANAL DE VOZ
+const CHANNEL_TOTAL = "AQUI_ID_DEL_CANAL";
+
+// ===== CLIENT =====
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildPresences
+    GatewayIntentBits.MessageContent
   ]
 });
 
@@ -44,7 +46,7 @@ function saveData() {
   fs.writeFileSync('./data.json', JSON.stringify(xp, null, 2));
 }
 
-// ===== LOGIN =====
+// ===== LOGIN DISCORD =====
 app.use(session({
   secret: process.env.SESSION_SECRET || "123456",
   resave: false,
@@ -66,6 +68,7 @@ passport.use(new DiscordStrategy({
   return done(null, profile);
 }));
 
+// ===== LOGIN ROUTES =====
 app.get('/login', passport.authenticate('discord'));
 
 app.get('/auth/callback',
@@ -83,12 +86,24 @@ function checkAuth(req, res, next) {
   res.redirect('/');
 }
 
+// ===== PANEL =====
 app.get('/', (req, res) => {
-  res.send(`<h1>🔥 MU CORE PANEL</h1><a href="/login">Login Discord</a>`);
+  res.send(`
+    <h1>🔥 MU CORE PANEL</h1>
+    ${
+      req.isAuthenticated()
+        ? `<p>${req.user.username}</p><a href="/panel">Panel</a>`
+        : `<a href="/login">Login con Discord</a>`
+    }
+  `);
 });
 
 app.get('/panel', checkAuth, (req, res) => {
-  res.send(`<h1>🔥 PANEL</h1><p>${req.user.username}</p>`);
+  res.send(`
+    <h1>🔥 PANEL ADMIN</h1>
+    <p>Usuario: ${req.user.username}</p>
+    <a href="/logout">Cerrar sesión</a>
+  `);
 });
 
 // ===== COMANDOS =====
@@ -99,7 +114,7 @@ const commands = [
 
 // ===== READY =====
 client.once('ready', async () => {
-  console.log(`🔥 BOT: ${client.user.tag}`);
+  console.log(`🔥 BOT activo: ${client.user.tag}`);
 
   const rest = new REST({ version: '10' }).setToken(TOKEN);
 
@@ -108,9 +123,10 @@ client.once('ready', async () => {
     { body: commands }
   );
 
-  console.log("✅ Comandos listos");
+  console.log("✅ Comandos cargados");
 
-  client.guilds.cache.forEach(g => updateStats(g));
+  // 🔥 ACTUALIZA CONTADOR AL INICIAR
+  client.guilds.cache.forEach(g => updateCounter(g));
 });
 
 // ===== XP =====
@@ -131,7 +147,7 @@ client.on('messageCreate', msg => {
   saveData();
 });
 
-// ===== INTERACCIONES =====
+// ===== COMANDOS =====
 client.on('interactionCreate', async i => {
   if (!i.isChatInputCommand()) return;
 
@@ -145,40 +161,24 @@ client.on('interactionCreate', async i => {
   }
 });
 
-// ===== CONTADOR PRO MAX =====
-async function updateStats(guild) {
+// ===== CONTADOR SIMPLE (ESTABLE) =====
+async function updateCounter(guild) {
   try {
-    const members = await guild.members.fetch();
+    const channel = guild.channels.cache.get(CHANNEL_TOTAL);
+    if (!channel) return;
 
     const total = guild.memberCount;
-    const humans = members.filter(m => !m.user.bot).size;
-    const bots = members.filter(m => m.user.bot).size;
-    const online = members.filter(m => m.presence?.status !== 'offline').size;
 
-    const channels = {
-      total: guild.channels.cache.get("ID_TOTAL"),
-      online: guild.channels.cache.get("ID_ONLINE"),
-      humans: guild.channels.cache.get("ID_HUMANS"),
-      bots: guild.channels.cache.get("ID_BOTS")
-    };
-
-    if (channels.total) await channels.total.setName(`👥・Total: ${total}`);
-    if (channels.online) await channels.online.setName(`🟢・Online: ${online}`);
-    if (channels.humans) await channels.humans.setName(`👤・Humanos: ${humans}`);
-    if (channels.bots) await channels.bots.setName(`🤖・Bots: ${bots}`);
+    await channel.setName(`👥・Total: ${total}`);
 
   } catch (err) {
-    console.log("❌ Error en contador:", err.message);
+    console.log("❌ Error contador:", err.message);
   }
 }
-// ===== EVENTOS =====
-client.on('guildMemberAdd', m => updateStats(m.guild));
-client.on('guildMemberRemove', m => updateStats(m.guild));
 
-client.on('presenceUpdate', (o, n) => {
-  if (!n?.guild) return;
-  updateStats(n.guild);
-});
+// ===== EVENTOS =====
+client.on('guildMemberAdd', m => updateCounter(m.guild));
+client.on('guildMemberRemove', m => updateCounter(m.guild));
 
 // ===== START =====
 app.listen(PORT, () => console.log("🌐 Panel activo"));
