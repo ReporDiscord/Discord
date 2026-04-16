@@ -1,7 +1,6 @@
 {
   "name": "mu-core-bot",
   "version": "1.0.0",
-  "description": "Bot Discord + Panel Web",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -9,6 +8,9 @@
   "dependencies": {
     "discord.js": "^14.14.1",
     "dotenv": "^16.4.5",
-    "express": "^4.18.2"
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "passport": "^0.6.0",
+    "passport-discord": "^0.1.4"
   }
 }
