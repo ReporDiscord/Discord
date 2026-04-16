@@ -27,9 +27,10 @@ const PORT = process.env.PORT || 8080;
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMembers
+    GatewayIntentBits.GuildPresences
   ]
 });
 
@@ -43,7 +44,7 @@ function saveData() {
   fs.writeFileSync('./data.json', JSON.stringify(xp, null, 2));
 }
 
-// ===== LOGIN DISCORD =====
+// ===== LOGIN =====
 app.use(session({
   secret: process.env.SESSION_SECRET || "123456",
   resave: false,
@@ -65,7 +66,6 @@ passport.use(new DiscordStrategy({
   return done(null, profile);
 }));
 
-// ===== LOGIN ROUTES =====
 app.get('/login', passport.authenticate('discord'));
 
 app.get('/auth/callback',
@@ -83,54 +83,42 @@ function checkAuth(req, res, next) {
   res.redirect('/');
 }
 
-// ===== PANEL =====
 app.get('/', (req, res) => {
-  res.send(`
-    <h1>🔥 MU CORE PANEL</h1>
-    ${
-      req.isAuthenticated()
-        ? `<p>${req.user.username}</p><a href="/panel">Panel</a>`
-        : `<a href="/login">Login con Discord</a>`
-    }
-  `);
+  res.send(`<h1>🔥 MU CORE PANEL</h1><a href="/login">Login Discord</a>`);
 });
 
 app.get('/panel', checkAuth, (req, res) => {
-  res.send(`
-    <h1>🔥 PANEL ADMIN</h1>
-    <p>Usuario: ${req.user.username}</p>
-    <a href="/logout">Cerrar sesión</a>
-  `);
+  res.send(`<h1>🔥 PANEL</h1><p>${req.user.username}</p>`);
 });
 
 // ===== COMANDOS =====
 const commands = [
   new SlashCommandBuilder().setName('ping').setDescription('Pong'),
-  new SlashCommandBuilder().setName('info').setDescription('Info server'),
-  new SlashCommandBuilder().setName('rank').setDescription('Tu nivel'),
-  new SlashCommandBuilder().setName('top').setDescription('Ranking')
+  new SlashCommandBuilder().setName('rank').setDescription('Tu nivel')
 ].map(c => c.toJSON());
 
 // ===== READY =====
 client.once('ready', async () => {
-  console.log(`🔥 BOT activo: ${client.user.tag}`);
+  console.log(`🔥 BOT: ${client.user.tag}`);
 
   const rest = new REST({ version: '10' }).setToken(TOKEN);
 
-  // 🔥 SIN GUILD_ID (evita crash)
   await rest.put(
     Routes.applicationCommands(CLIENT_ID),
     { body: commands }
   );
 
-  console.log("✅ Comandos cargados");
+  console.log("✅ Comandos listos");
+
+  client.guilds.cache.forEach(g => updateStats(g));
 });
 
 // ===== XP =====
-client.on('messageCreate', (msg) => {
+client.on('messageCreate', msg => {
   if (msg.author.bot) return;
 
   const id = msg.author.id;
+
   if (!xp[id]) xp[id] = { xp: 0, level: 1 };
 
   xp[id].xp += 10;
@@ -144,59 +132,52 @@ client.on('messageCreate', (msg) => {
 });
 
 // ===== INTERACCIONES =====
-client.on('interactionCreate', async (i) => {
+client.on('interactionCreate', async i => {
   if (!i.isChatInputCommand()) return;
 
   const id = i.user.id;
 
   if (i.commandName === 'ping') return i.reply('🏓 Pong');
 
-  if (i.commandName === 'info') {
-    return i.reply(`📊 ${i.guild.name} | 👥 ${i.guild.memberCount}`);
-  }
-
   if (i.commandName === 'rank') {
     const d = xp[id] || { xp: 0, level: 1 };
     return i.reply(`🏆 Nivel ${d.level} | XP ${d.xp}`);
   }
-
-  if (i.commandName === 'top') {
-    const top = Object.entries(xp)
-      .sort((a,b)=>b[1].xp-a[1].xp)
-      .slice(0,5);
-
-    let msg = "🏆 TOP\n\n";
-
-    for (let x = 0; x < top.length; x++) {
-      const user = await client.users.fetch(top[x][0]);
-      msg += `${x+1}. ${user.username} - ${top[x][1].xp}\n`;
-    }
-
-    i.reply(msg);
-  }
 });
 
-// ===== API =====
-app.get('/api/ranking', async (req, res) => {
-  const arr = [];
+// ===== CONTADOR PRO MAX =====
+async function updateStats(guild) {
+  const members = await guild.members.fetch();
 
-  for (const id in xp) {
-    const user = await client.users.fetch(id);
+  const total = guild.memberCount;
+  const humans = members.filter(m => !m.user.bot).size;
+  const bots = members.filter(m => m.user.bot).size;
+  const online = members.filter(m => m.presence?.status !== 'offline').size;
 
-    arr.push({
-      name: user.username,
-      xp: xp[id].xp,
-      level: xp[id].level
-    });
-  }
+  // 🔥 REEMPLAZA ESTOS IDs
+  const channels = {
+    total: guild.channels.cache.get("ID_TOTAL"),
+    online: guild.channels.cache.get("ID_ONLINE"),
+    humans: guild.channels.cache.get("ID_HUMANS"),
+    bots: guild.channels.cache.get("ID_BOTS")
+  };
 
-  arr.sort((a,b)=>b.xp-a.xp);
-  res.json(arr);
+  if (channels.total) channels.total.setName(`👥・Total: ${total}`);
+  if (channels.online) channels.online.setName(`🟢・Online: ${online}`);
+  if (channels.humans) channels.humans.setName(`👤・Humanos: ${humans}`);
+  if (channels.bots) channels.bots.setName(`🤖・Bots: ${bots}`);
+}
+
+// ===== EVENTOS =====
+client.on('guildMemberAdd', m => updateStats(m.guild));
+client.on('guildMemberRemove', m => updateStats(m.guild));
+
+client.on('presenceUpdate', (o, n) => {
+  if (!n?.guild) return;
+  updateStats(n.guild);
 });
 
 // ===== START =====
-app.listen(PORT, () => {
-  console.log("🌐 Panel activo");
-});
+app.listen(PORT, () => console.log("🌐 Panel activo"));
 
 client.login(TOKEN);
