@@ -156,10 +156,10 @@ async function updateStats(guild) {
 
   // 🔥 REEMPLAZA ESTOS IDs
   const channels = {
-    total: guild.channels.cache.get("ID_TOTAL"),
-    online: guild.channels.cache.get("ID_ONLINE"),
-    humans: guild.channels.cache.get("ID_HUMANS"),
-    bots: guild.channels.cache.get("ID_BOTS")
+    total: guild.channels.cache.get("1494133601091190957"),
+    online: guild.channels.cache.get("1494133601091190957"),
+    humans: guild.channels.cache.get("1494134216437530777"),
+    bots: guild.channels.cache.get("1494134104369790976")
   };
 
   if (channels.total) channels.total.setName(`👥・Total: ${total}`);
