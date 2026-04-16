@@ -6,8 +6,6 @@ const session = require('express-session');
 const passport = require('passport');
 const DiscordStrategy = require('passport-discord').Strategy;
 
-const app = express();
-
 const {
   Client,
   GatewayIntentBits,
@@ -16,14 +14,16 @@ const {
   SlashCommandBuilder
 } = require('discord.js');
 
+const app = express();
+app.use(express.json());
+
 // ===== CONFIG =====
 const TOKEN = process.env.TOKEN;
 const CLIENT_ID = "1494077640355741947";
-const GUILD_ID = "1490025222798053467";
-
+const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const PORT = process.env.PORT || 8080;
 
-// ===== DISCORD CLIENT =====
+// ===== BOT =====
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -35,7 +35,6 @@ const client = new Client({
 
 // ===== DATA =====
 let xp = {};
-
 if (fs.existsSync('./data.json')) {
   xp = JSON.parse(fs.readFileSync('./data.json'));
 }
@@ -46,7 +45,7 @@ function saveData() {
 
 // ===== LOGIN DISCORD =====
 app.use(session({
-  secret: process.env.SESSION_SECRET || "supersecret",
+  secret: process.env.SESSION_SECRET || "123456",
   resave: false,
   saveUninitialized: false
 }));
@@ -59,14 +58,14 @@ passport.deserializeUser((obj, done) => done(null, obj));
 
 passport.use(new DiscordStrategy({
   clientID: CLIENT_ID,
-  clientSecret: process.env.CLIENT_SECRET,
+  clientSecret: CLIENT_SECRET,
   callbackURL: "https://discord-production-f4e2.up.railway.app/auth/callback",
-  scope: ['identify', 'guilds']
+  scope: ['identify']
 }, (accessToken, refreshToken, profile, done) => {
   return done(null, profile);
 }));
 
-// ===== RUTAS LOGIN =====
+// ===== LOGIN ROUTES =====
 app.get('/login', passport.authenticate('discord'));
 
 app.get('/auth/callback',
@@ -84,26 +83,47 @@ function checkAuth(req, res, next) {
   res.redirect('/');
 }
 
+// ===== PANEL =====
+app.get('/', (req, res) => {
+  res.send(`
+    <h1>🔥 MU CORE PANEL</h1>
+    ${
+      req.isAuthenticated()
+        ? `<p>${req.user.username}</p><a href="/panel">Panel</a>`
+        : `<a href="/login">Login con Discord</a>`
+    }
+  `);
+});
+
+app.get('/panel', checkAuth, (req, res) => {
+  res.send(`
+    <h1>🔥 PANEL ADMIN</h1>
+    <p>Usuario: ${req.user.username}</p>
+    <a href="/logout">Cerrar sesión</a>
+  `);
+});
+
 // ===== COMANDOS =====
 const commands = [
   new SlashCommandBuilder().setName('ping').setDescription('Pong'),
   new SlashCommandBuilder().setName('info').setDescription('Info server'),
   new SlashCommandBuilder().setName('rank').setDescription('Tu nivel'),
   new SlashCommandBuilder().setName('top').setDescription('Ranking')
-].map(cmd => cmd.toJSON());
+].map(c => c.toJSON());
 
 // ===== READY =====
 client.once('ready', async () => {
-  console.log(`🔥 BOT activo como ${client.user.tag}`);
+  console.log(`🔥 BOT activo: ${client.user.tag}`);
 
   const rest = new REST({ version: '10' }).setToken(TOKEN);
 
+  // 🔥 SIN GUILD_ID (evita crash)
   await rest.put(
-    Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
+    Routes.applicationCommands(CLIENT_ID),
     { body: commands }
   );
 
-  console.log("✅ Comandos listos");
+  console.log("✅ Comandos cargados");
 });
 
 // ===== XP =====
@@ -111,7 +131,6 @@ client.on('messageCreate', (msg) => {
   if (msg.author.bot) return;
 
   const id = msg.author.id;
-
   if (!xp[id]) xp[id] = { xp: 0, level: 1 };
 
   xp[id].xp += 10;
@@ -122,14 +141,6 @@ client.on('messageCreate', (msg) => {
   }
 
   saveData();
-});
-
-// ===== BIENVENIDA =====
-client.on('guildMemberAdd', (member) => {
-  const canal = member.guild.systemChannel;
-  if (!canal) return;
-
-  canal.send(`🔥 Bienvenido ${member.user} a MU CORE 💀`);
 });
 
 // ===== INTERACCIONES =====
@@ -151,8 +162,8 @@ client.on('interactionCreate', async (i) => {
 
   if (i.commandName === 'top') {
     const top = Object.entries(xp)
-      .sort((a, b) => b[1].xp - a[1].xp)
-      .slice(0, 5);
+      .sort((a,b)=>b[1].xp-a[1].xp)
+      .slice(0,5);
 
     let msg = "🏆 TOP\n\n";
 
@@ -181,27 +192,6 @@ app.get('/api/ranking', async (req, res) => {
 
   arr.sort((a,b)=>b.xp-a.xp);
   res.json(arr);
-});
-
-// ===== PANEL =====
-app.get('/panel', checkAuth, (req, res) => {
-  res.send(`
-  <h1>🔥 PANEL PRO</h1>
-  <p>Usuario: ${req.user.username}</p>
-  <a href="/logout">Salir</a>
-  `);
-});
-
-// ===== HOME =====
-app.get('/', (req, res) => {
-  res.send(`
-  <h1>🔥 MU CORE</h1>
-  ${
-    req.isAuthenticated()
-    ? `<a href="/panel">Panel</a>`
-    : `<a href="/login">Login Discord</a>`
-  }
-  `);
 });
 
 // ===== START =====
