@@ -23,7 +23,7 @@ const CLIENT_ID = "1494077640355741947";
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const PORT = process.env.PORT || 8080;
 
-// ⚠️ PON AQUÍ EL ID DE TU CANAL DE VOZ
+// ⚠️ SOLO 1 CANAL (ESTABLE)
 const CHANNEL_TOTAL = "AQUI_ID_DEL_CANAL";
 
 // ===== CLIENT =====
@@ -46,7 +46,7 @@ function saveData() {
   fs.writeFileSync('./data.json', JSON.stringify(xp, null, 2));
 }
 
-// ===== LOGIN DISCORD =====
+// ===== LOGIN =====
 app.use(session({
   secret: process.env.SESSION_SECRET || "123456",
   resave: false,
@@ -68,7 +68,7 @@ passport.use(new DiscordStrategy({
   return done(null, profile);
 }));
 
-// ===== LOGIN ROUTES =====
+// ===== ROUTES =====
 app.get('/login', passport.authenticate('discord'));
 
 app.get('/auth/callback',
@@ -86,7 +86,6 @@ function checkAuth(req, res, next) {
   res.redirect('/');
 }
 
-// ===== PANEL =====
 app.get('/', (req, res) => {
   res.send(`
     <h1>🔥 MU CORE PANEL</h1>
@@ -125,7 +124,6 @@ client.once('ready', async () => {
 
   console.log("✅ Comandos cargados");
 
-  // 🔥 ACTUALIZA CONTADOR AL INICIAR
   client.guilds.cache.forEach(g => updateCounter(g));
 });
 
@@ -147,7 +145,7 @@ client.on('messageCreate', msg => {
   saveData();
 });
 
-// ===== COMANDOS =====
+// ===== INTERACCIONES =====
 client.on('interactionCreate', async i => {
   if (!i.isChatInputCommand()) return;
 
@@ -161,7 +159,7 @@ client.on('interactionCreate', async i => {
   }
 });
 
-// ===== CONTADOR SIMPLE (ESTABLE) =====
+// ===== CONTADOR SIMPLE =====
 async function updateCounter(guild) {
   try {
     const channel = guild.channels.cache.get(CHANNEL_TOTAL);
